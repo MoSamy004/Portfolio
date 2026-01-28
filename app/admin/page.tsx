@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Profile, Project, Experience, Portfolio } from "@/lib/types";
 
 const VALID_USERNAME = process.env.NEXT_PUBLIC_USERNAME;
