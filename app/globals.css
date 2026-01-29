@@ -27,13 +27,30 @@ body {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1rem;
   transition: transform 0.2s, box-shadow 0.2s;
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: 1.5rem;
+  }
 }
 
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Disable hover transform on touch devices for better UX */
+@media (hover: none) {
+  .card:hover {
+    transform: none;
+  }
+
+  .card:active {
+    transform: scale(0.98);
+  }
 }
 
 .btn-primary {

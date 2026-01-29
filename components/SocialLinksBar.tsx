@@ -45,69 +45,76 @@ type Props = {
 
 export default function SocialLinksBar({ links, email, phone }: Props) {
   return (
-    <div className="flex flex-wrap gap-4 items-center">
-      {email && (
-        <a
-          href={`mailto:${email}`}
-          className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-        >
-          <EmailIcon />
-          <span className="text-sm">{email}</span>
-        </a>
-      )}
-      {phone && (
-        <a
-          href={`tel:${phone}`}
-          className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-        >
-          <PhoneIcon />
-          <span className="text-sm">{phone}</span>
-        </a>
-      )}
-      {links.linkedin && (
-        <a
-          href={links.linkedin}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-          title="LinkedIn"
-        >
-          <LinkedInIcon />
-        </a>
-      )}
-      {links.github && (
-        <a
-          href={links.github}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-          title="GitHub"
-        >
-          <GitHubIcon />
-        </a>
-      )}
-      {links.tableau && (
-        <a
-          href={links.tableau}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-          title="Tableau"
-        >
-          <TableauIcon />
-        </a>
-      )}
-      {links.powerbi && (
-        <a
-          href={links.powerbi}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-          title="Power BI"
-        >
-          <PowerBIIcon />
-        </a>
-      )}
+    <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-center justify-center md:justify-start">
+      {/* Contact info - stacked on mobile */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center w-full sm:w-auto">
+        {email && (
+          <a
+            href={`mailto:${email}`}
+            className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <EmailIcon />
+            <span className="text-xs sm:text-sm break-all">{email}</span>
+          </a>
+        )}
+        {phone && (
+          <a
+            href={`tel:${phone}`}
+            className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <PhoneIcon />
+            <span className="text-xs sm:text-sm">{phone}</span>
+          </a>
+        )}
+      </div>
+
+      {/* Social icons - horizontal row */}
+      <div className="flex gap-3 sm:gap-4 items-center">
+        {links.linkedin && (
+          <a
+            href={links.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+            title="LinkedIn"
+          >
+            <LinkedInIcon />
+          </a>
+        )}
+        {links.github && (
+          <a
+            href={links.github}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+            title="GitHub"
+          >
+            <GitHubIcon />
+          </a>
+        )}
+        {links.tableau && (
+          <a
+            href={links.tableau}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+            title="Tableau"
+          >
+            <TableauIcon />
+          </a>
+        )}
+        {links.powerbi && (
+          <a
+            href={links.powerbi}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+            title="Power BI"
+          >
+            <PowerBIIcon />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
