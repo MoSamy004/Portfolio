@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Profile, Project, Experience, Portfolio } from "@/lib/types";
 
 const VALID_USERNAME = process.env.NEXT_PUBLIC_USERNAME;
@@ -31,6 +31,9 @@ export default function AdminPage() {
   const [experiences, setExperiences] = useState<Experience[]>([]);
 
   const [activeTab, setActiveTab] = useState<"profile" | "projects" | "experiences">("profile");
+
+  const [tempAvatarFile, setTempAvatarFile] = useState<File | null>(null);
+  const [projectTempImages, setProjectTempImages] = useState<Record<string, { url: string; file?: File; isExisting: boolean }[]>>({});
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +73,26 @@ export default function AdminPage() {
   const saveProfile = async () => {
     setSaving(true);
     try {
+      // Handle avatar upload
+      if (tempAvatarFile) {
+        const oldUrl = profile.avatarUrl;
+        const url = await uploadImage(tempAvatarFile);
+        if (url) {
+          setProfile({ ...profile, avatarUrl: url });
+          setTempAvatarFile(null);
+          // Delete old avatar if it was uploaded and not blob
+          if (oldUrl && !oldUrl.startsWith('blob:') && oldUrl !== url) {
+            await deleteImage(oldUrl);
+          }
+        }
+      }
       await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),
       });
       showMessage("Profile saved successfully!");
-    } catch (err) {
+    } catch (_err) {
       showMessage("Failed to save profile");
     } finally {
       setSaving(false);
@@ -86,13 +102,27 @@ export default function AdminPage() {
   const saveProjects = async () => {
     setSaving(true);
     try {
+      const newProjects = await Promise.all(projects.map(async (project) => {
+        const tempImages = projectTempImages[project.id] || [];
+        const newImages = await Promise.all(
+          tempImages.map(async (img) => {
+            if (img.file) {
+              const url = await uploadImage(img.file);
+              return url || img.url;
+            }
+            return img.url;
+          })
+        );
+        return { ...project, images: newImages };
+      }));
+      setProjects(newProjects);
       await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projects),
+        body: JSON.stringify(newProjects),
       });
       showMessage("Projects saved successfully!");
-    } catch (err) {
+    } catch (_err) {
       showMessage("Failed to save projects");
     } finally {
       setSaving(false);
@@ -131,6 +161,14 @@ export default function AdminPage() {
     }
   };
 
+  const deleteImage = async (url: string) => {
+    try {
+      await fetch(`/api/upload?url=${encodeURIComponent(url)}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error("Failed to delete image:", err);
+    }
+  };
+
   const addProject = () => {
     setProjects([
       ...projects,
@@ -148,9 +186,9 @@ export default function AdminPage() {
     setProjects(projects.filter((p) => p.id !== id));
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
-    setProjects(projects.map((p) => (p.id === id ? { ...p, ...updates } : p)));
-  };
+  const updateProject = useCallback((id: string, updates: Partial<Project>) => {
+    setProjects(projects => projects.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+  }, []);
 
   const addExperience = () => {
     setExperiences([
@@ -340,8 +378,8 @@ export default function AdminPage() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const url = await uploadImage(file);
-                        if (url) setProfile({ ...profile, avatarUrl: url });
+                        setTempAvatarFile(file);
+                        setProfile({ ...profile, avatarUrl: URL.createObjectURL(file) });
                       }
                     }}
                   />
@@ -433,7 +471,8 @@ export default function AdminPage() {
                 project={project}
                 onUpdate={(updates) => updateProject(project.id, updates)}
                 onRemove={() => removeProject(project.id)}
-                onUploadImage={uploadImage}
+                onDeleteImage={deleteImage}
+                setProjectTempImages={setProjectTempImages}
               />
             ))}
 
@@ -530,25 +569,67 @@ function ProjectEditor({
   project,
   onUpdate,
   onRemove,
-  onUploadImage,
+  onDeleteImage,
+  setProjectTempImages,
 }: {
   project: Project;
   onUpdate: (updates: Partial<Project>) => void;
   onRemove: () => void;
-  onUploadImage: (file: File) => Promise<string | null>;
+  onDeleteImage: (url: string) => Promise<void>;
+  setProjectTempImages: React.Dispatch<React.SetStateAction<Record<string, { url: string; file?: File; isExisting: boolean }[]>>>;
 }) {
+  const [images, setImages] = useState<{ url: string; file?: File; isExisting: boolean }[]>(
+    project.images.map(url => ({ url, isExisting: true }))
+  );
   const [newImageUrl, setNewImageUrl] = useState("");
+
+  const prevImagesRef = useRef<{ url: string; file?: File; isExisting: boolean }[]>(images);
+  const prevImagesUrlsRef = useRef<string[]>([]);
 
   const addImageUrl = () => {
     if (newImageUrl.trim()) {
-      onUpdate({ images: [...project.images, newImageUrl.trim()] });
+      setImages([...images, { url: newImageUrl.trim(), isExisting: true }]);
       setNewImageUrl("");
     }
   };
 
-  const removeImage = (index: number) => {
-    onUpdate({ images: project.images.filter((_, i) => i !== index) });
+  const removeImage = async (index: number) => {
+    const img = images[index];
+    if (img.isExisting) {
+      await onDeleteImage(img.url);
+    } else if (img.file) {
+      URL.revokeObjectURL(img.url);
+    }
+    setImages(images.filter((_, i) => i !== index));
   };
+
+  // Update parent when images change
+  useEffect(() => {
+    const currentUrls = images.map(i => i.url);
+    if (JSON.stringify(currentUrls) !== JSON.stringify(prevImagesUrlsRef.current)) {
+      onUpdate({ images: currentUrls });
+      prevImagesUrlsRef.current = currentUrls;
+    }
+  }, [images, onUpdate]);
+
+  // Update global temp images
+  useEffect(() => {
+    setProjectTempImages(prev => ({ ...prev, [project.id]: images }));
+  }, [images, project.id, setProjectTempImages]);
+
+  // Compare with previous images for deletion
+  useEffect(() => {
+    const prevImages = prevImagesRef.current;
+    const deletedImages = prevImages.filter(img => !images.find(i => i.url === img.url));
+    deletedImages.forEach(img => {
+      if (img.isExisting) {
+        onDeleteImage(img.url);
+      } else if (img.file) {
+        URL.revokeObjectURL(img.url);
+      }
+    });
+    prevImagesRef.current = images;
+  }, [images, onDeleteImage]);
 
   return (
     <div className="card space-y-4">
@@ -599,12 +680,12 @@ function ProjectEditor({
         <label className="block text-sm text-[var(--muted)] mb-1">Images</label>
 
         {/* Existing images */}
-        {project.images.length > 0 && (
+        {images.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {project.images.map((img, idx) => (
+            {images.map((img, idx) => (
               <div key={idx} className="relative group">
                 <img
-                  src={img}
+                  src={img.url}
                   alt={`Project image ${idx + 1}`}
                   className="w-20 h-20 object-cover rounded-lg"
                 />
@@ -643,10 +724,8 @@ function ProjectEditor({
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) {
-                const url = await onUploadImage(file);
-                if (url) {
-                  onUpdate({ images: [...project.images, url] });
-                }
+                const blobUrl = URL.createObjectURL(file);
+                setImages([...images, { url: blobUrl, file, isExisting: false }]);
               }
             }}
           />
