@@ -1,6 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 
-const uri = "mongodb+srv://abdosaad:24102000@cluster0.szycojp.mongodb.net/?appName=Cluster0";
+const uri = "mongodb+srv://abdosaad:24102000@cluster0.gemj4ss.mongodb.net/?appName=Cluster0";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
